@@ -1,9 +1,9 @@
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Wrap},
-    Frame,
 };
 
 use crate::app::{App, RequestStatus};
@@ -37,9 +37,12 @@ fn draw_url_bar(frame: &mut Frame, app: &App, area: Rect) {
 fn draw_status(frame: &mut Frame, app: &App, area: Rect) {
     let (label, color) = match app.status {
         RequestStatus::Loading => ("Loading...".to_string(), Color::Yellow),
-        RequestStatus::Idle => match (app.response_status, &app.error) {
+        RequestStatus::Idle => match (&app.response, &app.error) {
             (_, Some(e)) => (format!("Error: {e}"), Color::Red),
-            (Some(code), None) => (format!("Status: {code}"), Color::Green),
+            (Some(resp), None) => match resp.status {
+                Some(code) => (format!("Status: {code}"), Color::Green),
+                None => ("Idle".to_string(), Color::DarkGray),
+            },
             (None, None) => ("Idle".to_string(), Color::DarkGray),
         },
     };
@@ -53,10 +56,16 @@ fn draw_status(frame: &mut Frame, app: &App, area: Rect) {
 }
 
 fn draw_response(frame: &mut Frame, app: &App, area: Rect) {
-    let block = Block::default().title("Response Body").borders(Borders::ALL);
-    let text = Paragraph::new(app.response_body.as_str())
-        .block(block)
-        .wrap(Wrap { trim: false });
+    let block = Block::default()
+        .title("Response Body")
+        .borders(Borders::ALL);
+    let text = if let Some(resp) = &app.response {
+        Paragraph::new(resp.body.as_str())
+            .block(block)
+            .wrap(Wrap { trim: false })
+    } else {
+        Paragraph::new("").block(block)
+    };
     frame.render_widget(text, area);
 }
 

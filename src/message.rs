@@ -1,11 +1,11 @@
-use crate::client::ApiResult;
 use ratatui::crossterm::event::KeyEvent;
 
-/// Every single thing that can happen in this app, named as data.
+use crate::app::Response;
+
 #[derive(Debug)]
 pub enum Message {
     KeyPressed(KeyEvent),
     SendRequest,
-    ResponseReceived(Result<ApiResult, String>),
+    ResponseReceived(Result<Response, String>),
     Quit,
 }

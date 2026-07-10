@@ -1,7 +1,7 @@
 use ratatui::crossterm::event::KeyCode;
 
-use crate::command::Command;
 use crate::app::{App, RequestStatus};
+use crate::command::Command;
 use crate::message::Message;
 
 /// Pure: (Message, &mut App) -> Command. No I/O, no async, no channels.
@@ -22,7 +22,7 @@ pub fn update(message: Message, app: &mut App) -> Command {
                 app.url.pop();
                 Command::None
             }
-            _ => Command::None
+            _ => Command::None,
         },
 
         Message::SendRequest => {
@@ -37,9 +37,8 @@ pub fn update(message: Message, app: &mut App) -> Command {
         Message::ResponseReceived(result) => {
             app.status = RequestStatus::Idle;
             match result {
-                Ok(res) => {
-                    app.response_status = Some(res.status);
-                    app.response_body = res.body;
+                Ok(result) => {
+                    app.response = Some(result);
                     app.error = None;
                 }
                 Err(e) => app.error = Some(e),

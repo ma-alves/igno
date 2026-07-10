@@ -1,6 +1,6 @@
+mod app;
 mod client;
 mod command;
-mod app;
 mod message;
 mod update;
 mod view;
@@ -11,13 +11,13 @@ use color_eyre::Result;
 use ratatui::crossterm::{
     event::{self as cevent, Event as CEvent},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
-use ratatui::{backend::CrosstermBackend, Terminal};
+use ratatui::{Terminal, backend::CrosstermBackend};
 use tokio::sync::mpsc;
 
-use command::Command;
 use app::App;
+use command::command_handler;
 use message::Message;
 use update::update;
 
@@ -47,18 +47,16 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>) -> Resu
     loop {
         terminal.draw(|f| view::view(f, &app))?;
 
-        // Any Message that arrived asynchronously (e.g. an API response).
+        // Any Message that arrived asynchronously.
         while let Ok(message) = rx.try_recv() {
-            let effect = update(message, &mut app);
-            perform(effect, tx.clone());
+            let command = update(message, &mut app);
+            command_handler(command, tx.clone());
         }
 
-        // Poll with a short timeout so the loop still wakes up
-        // regularly to check the channel above.
         if cevent::poll(Duration::from_millis(50))? {
             if let CEvent::Key(key) = cevent::read()? {
-                let effect = update(Message::KeyPressed(key), &mut app);
-                perform(effect, tx.clone());
+                let command = update(Message::KeyPressed(key), &mut app);
+                command_handler(command, tx.clone());
             }
         }
 
@@ -68,17 +66,4 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>) -> Resu
     }
 
     Ok(())
-}
-
-/// The only place a `Command` turns into a real side effect.
-fn perform(cmd: Command, tx: mpsc::Sender<Message>) {
-    match cmd {
-        Command::None => {}
-        Command::FetchUrl(url) => {
-            tokio::spawn(async move {
-                let result = client::fetch(&url).await;
-                let _ = tx.send(Message::ResponseReceived(result)).await;
-            });
-        }
-    }
 }
