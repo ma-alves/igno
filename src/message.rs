@@ -7,5 +7,4 @@ pub enum Message {
     KeyPressed(KeyEvent),
     SendRequest,
     ResponseReceived(Result<Response, String>),
-    Quit,
 }

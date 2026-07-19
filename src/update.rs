@@ -45,10 +45,5 @@ pub fn update(message: Message, app: &mut App) -> Command {
             }
             Command::None
         }
-
-        Message::Quit => {
-            app.should_quit = true;
-            Command::None
-        }
     }
 }
