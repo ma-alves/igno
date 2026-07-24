@@ -12,23 +12,30 @@ use crate::app::{App, RequestStatus};
 /// This is the "V" in App-Update-View — it never sends a `Message`
 /// or reaches into `Command`; it only reads.
 pub fn view(frame: &mut Frame, app: &App) {
-    let chunks = Layout::default()
+    let vertical = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3), // URL bar
-            Constraint::Length(3), // status line
-            Constraint::Min(0),    // response body
-            Constraint::Length(1), // help footer
+            Constraint::Length(3), // status
+            Constraint::Min(0),    // request | response
+            Constraint::Length(1), // footer
         ])
         .split(frame.area());
 
-    draw_url_bar(frame, app, chunks[0]);
-    draw_status(frame, app, chunks[1]);
-    draw_response(frame, app, chunks[2]);
-    draw_footer(frame, chunks[3]);
+    let horizontal = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(50), // request (left)
+            Constraint::Percentage(50), // response (right)
+        ])
+        .split(vertical[1]);
+
+    draw_status(frame, app, vertical[0]);
+    draw_request(frame, app, horizontal[0]);
+    draw_response(frame, app, horizontal[1]);
+    draw_footer(frame, vertical[2]);
 }
 
-fn draw_url_bar(frame: &mut Frame, app: &App, area: Rect) {
+fn draw_request(frame: &mut Frame, app: &App, area: Rect) {
     let block = Block::default().title("URL (GET)").borders(Borders::ALL);
     let text = Paragraph::new(app.url.as_str()).block(block);
     frame.render_widget(text, area);
