@@ -1,10 +1,10 @@
-use ratatui::crossterm::event::KeyEvent;
-
 use crate::app::Response;
 
 #[derive(Debug)]
 pub enum Message {
-    KeyPressed(KeyEvent),
+    Char(char),
+    Backspace,
+    Quit,
     SendRequest,
     ResponseReceived(Result<Response, String>),
 }

@@ -1,23 +1,19 @@
 mod app;
 mod client;
-mod command;
+mod handlers;
 mod message;
 mod update;
 mod view;
 
-use std::time::Duration;
-
 use color_eyre::Result;
 use ratatui::crossterm::{
-    event::{self as cevent, Event as CEvent},
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::{Terminal, backend::CrosstermBackend};
 use tokio::sync::mpsc;
 
-use app::App;
-use command::command_handler;
+use app::{App, RequestStatus};
 use message::Message;
 use update::update;
 
@@ -44,24 +40,32 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>) -> Resu
     let mut app = App::default();
     let (tx, mut rx) = mpsc::channel::<Message>(32);
 
-    loop {
+    while app.running {
         terminal.draw(|f| view::view(f, &app))?;
 
-        // Any Message that arrived asynchronously.
-        while let Ok(message) = rx.try_recv() {
-            let command = update(message, &mut app);
-            command_handler(command, tx.clone());
-        }
-
-        if cevent::poll(Duration::from_millis(50))? {
-            if let CEvent::Key(key) = cevent::read()? {
-                let command = update(Message::KeyPressed(key), &mut app);
-                command_handler(command, tx.clone());
+        while let Ok(msg) = rx.try_recv() {
+            let mut current = Some(msg);
+            while let Some(msg) = current {
+                current = update(&mut app, msg);
             }
         }
 
-        if app.should_quit {
-            break;
+        if let Some(msg) = handlers::handle_event(&app)? {
+            let is_send = matches!(msg, Message::SendRequest);
+            let mut current = Some(msg);
+            while let Some(msg) = current {
+                current = update(&mut app, msg);
+            }
+            if is_send && app.status == RequestStatus::Loading && !app.pending {
+                app.pending = true;
+                let tx = tx.clone();
+                let url = app.url.clone();
+                tokio::spawn(async move {
+                    tx.send(Message::ResponseReceived(client::fetch(&url).await))
+                        .await
+                        .ok();
+                });
+            }
         }
     }
 

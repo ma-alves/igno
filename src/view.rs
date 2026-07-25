@@ -3,14 +3,11 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Wrap},
+    widgets::{Block, Borders, Paragraph},
 };
 
 use crate::app::{App, RequestStatus};
 
-/// Pure: given the app, draw the frame. No mutation, no I/O.
-/// This is the "V" in App-Update-View — it never sends a `Message`
-/// or reaches into `Command`; it only reads.
 pub fn view(frame: &mut Frame, app: &App) {
     let vertical = Layout::default()
         .direction(Direction::Vertical)
@@ -36,7 +33,7 @@ pub fn view(frame: &mut Frame, app: &App) {
 }
 
 fn draw_request(frame: &mut Frame, app: &App, area: Rect) {
-    let block = Block::default().title("URL (GET)").borders(Borders::ALL);
+    let block = Block::default().title("Request").borders(Borders::ALL);
     let text = Paragraph::new(app.url.as_str()).block(block);
     frame.render_widget(text, area);
 }
@@ -63,21 +60,30 @@ fn draw_status(frame: &mut Frame, app: &App, area: Rect) {
 }
 
 fn draw_response(frame: &mut Frame, app: &App, area: Rect) {
-    let block = Block::default()
-        .title("Response Body")
-        .borders(Borders::ALL);
-    let text = if let Some(resp) = &app.response {
-        Paragraph::new(resp.body.as_str())
-            .block(block)
-            .wrap(Wrap { trim: false })
+    let block = Block::default().title("Response").borders(Borders::ALL);
+    let response_text = if let Some(resp) = &app.response {
+        Paragraph::new(format!(
+            "Status: {}\nDuration: {} ms\nHeaders:\n{}\n\nBody:\n{}",
+            resp.status
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "<unknown>".to_string()),
+            resp.duration,
+            resp.headers
+                .iter()
+                .map(|(k, v)| format!("{}: {}", k, v))
+                .collect::<Vec<_>>()
+                .join("\n"),
+            resp.body
+        ))
+        .block(block)
     } else {
         Paragraph::new("").block(block)
     };
-    frame.render_widget(text, area);
+    frame.render_widget(response_text, area);
 }
 
 fn draw_footer(frame: &mut Frame, area: Rect) {
-    let text = Paragraph::new("Enter: send request  |  Backspace: edit URL  |  q: quit")
+    let text = Paragraph::new("Send: enter  |  Pop: backspace  |  Quit: q")
         .style(Style::default().fg(Color::DarkGray));
     frame.render_widget(text, area);
 }

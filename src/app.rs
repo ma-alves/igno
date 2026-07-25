@@ -6,7 +6,8 @@ pub struct App {
     pub request: Option<Request>,
     pub response: Option<Response>,
     pub error: Option<String>,
-    pub should_quit: bool,
+    pub pending: bool,
+    pub running: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -81,7 +82,8 @@ impl Default for App {
             request: None,
             response: None,
             error: None,
-            should_quit: false,
+            pending: false,
+            running: true,
         }
     }
 }
