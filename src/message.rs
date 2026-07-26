@@ -7,4 +7,9 @@ pub enum Message {
     Quit,
     SendRequest,
     ResponseReceived(Result<Response, String>),
+    ScrollUp,
+    ScrollDown,
+    PageUp,
+    PageDown,
+    ToggleFocus,
 }

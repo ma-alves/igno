@@ -3,10 +3,10 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, Borders, Paragraph, Wrap},
 };
 
-use crate::app::{App, RequestStatus};
+use crate::app::{App, Focus, RequestStatus};
 
 pub fn view(frame: &mut Frame, app: &App) {
     let vertical = Layout::default()
@@ -32,8 +32,19 @@ pub fn view(frame: &mut Frame, app: &App) {
     draw_footer(frame, vertical[2]);
 }
 
+// `Block<'a>` borrows the title string for its lifetime, so we need an explicit
+// lifetime on both the parameter and the return type to tell the borrow checker
+// that the returned Block does not outlive the title it references.
+fn focus_block<'a>(title: &'a str, focused: bool) -> Block<'a> {
+    let mut block = Block::default().title(title).borders(Borders::ALL);
+    if focused {
+        block = block.style(Style::default().add_modifier(Modifier::BOLD));
+    }
+    block
+}
+
 fn draw_request(frame: &mut Frame, app: &App, area: Rect) {
-    let block = Block::default().title("Request").borders(Borders::ALL);
+    let block = focus_block("Request", app.focus == Focus::RequestFocus);
     let text = Paragraph::new(app.url.as_str()).block(block);
     frame.render_widget(text, area);
 }
@@ -60,7 +71,7 @@ fn draw_status(frame: &mut Frame, app: &App, area: Rect) {
 }
 
 fn draw_response(frame: &mut Frame, app: &App, area: Rect) {
-    let block = Block::default().title("Response").borders(Borders::ALL);
+    let block = focus_block("Response", app.focus == Focus::ResponseFocus);
     let response_text = if let Some(resp) = &app.response {
         Paragraph::new(format!(
             "Status: {}\nDuration: {} ms\nHeaders:\n{}\n\nBody:\n{}",
@@ -76,6 +87,8 @@ fn draw_response(frame: &mut Frame, app: &App, area: Rect) {
             resp.body
         ))
         .block(block)
+        .scroll((app.response_scroll, 0))
+        .wrap(Wrap { trim: false })
     } else {
         Paragraph::new("").block(block)
     };
@@ -83,7 +96,7 @@ fn draw_response(frame: &mut Frame, app: &App, area: Rect) {
 }
 
 fn draw_footer(frame: &mut Frame, area: Rect) {
-    let text = Paragraph::new("Send: enter  |  Pop: backspace  |  Quit: q")
+    let text = Paragraph::new("Send: enter  |  Pop: backspace  |  Tab: focus  |  Scroll: ↑↓  |  Quit: q")
         .style(Style::default().fg(Color::DarkGray));
     frame.render_widget(text, area);
 }

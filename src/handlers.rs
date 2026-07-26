@@ -18,8 +18,13 @@ pub fn handle_event(_app: &App) -> Result<Option<Message>> {
 
 fn handle_key(key: event::KeyEvent) -> Option<Message> {
     match key.code {
+        KeyCode::Tab => Some(Message::ToggleFocus),
         KeyCode::Char('q') => Some(Message::Quit),
         KeyCode::Enter => Some(Message::SendRequest),
+        KeyCode::Up => Some(Message::ScrollUp),
+        KeyCode::Down => Some(Message::ScrollDown),
+        KeyCode::PageUp => Some(Message::PageUp),
+        KeyCode::PageDown => Some(Message::PageDown),
         KeyCode::Char(c) => Some(Message::Char(c)),
         KeyCode::Backspace => Some(Message::Backspace),
         _ => None,

@@ -13,9 +13,9 @@ use ratatui::crossterm::{
 use ratatui::{Terminal, backend::CrosstermBackend};
 use tokio::sync::mpsc;
 
-use app::{App, RequestStatus};
+use app::App;
 use message::Message;
-use update::update;
+use update::Command;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -36,36 +36,37 @@ async fn main() -> Result<()> {
     result
 }
 
+fn process_update(app: &mut App, msg: Message, tx: &mpsc::Sender<Message>) {
+    let cmd = update::update(app, msg);
+    if let Command::Fetch { url } = cmd {
+        let tx = tx.clone();
+        tokio::spawn(async move {
+            tx.send(Message::ResponseReceived(client::fetch(&url).await))
+                .await
+                .ok();
+        });
+    }
+}
+
 async fn run(terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>) -> Result<()> {
     let mut app = App::default();
     let (tx, mut rx) = mpsc::channel::<Message>(32);
+    let mut should_draw = true;
 
     while app.running {
-        terminal.draw(|f| view::view(f, &app))?;
+        if should_draw {
+            terminal.draw(|f| view::view(f, &app))?;
+            should_draw = false;
+        }
 
         while let Ok(msg) = rx.try_recv() {
-            let mut current = Some(msg);
-            while let Some(msg) = current {
-                current = update(&mut app, msg);
-            }
+            process_update(&mut app, msg, &tx);
+            should_draw = true;
         }
 
         if let Some(msg) = handlers::handle_event(&app)? {
-            let is_send = matches!(msg, Message::SendRequest);
-            let mut current = Some(msg);
-            while let Some(msg) = current {
-                current = update(&mut app, msg);
-            }
-            if is_send && app.status == RequestStatus::Loading && !app.pending {
-                app.pending = true;
-                let tx = tx.clone();
-                let url = app.url.clone();
-                tokio::spawn(async move {
-                    tx.send(Message::ResponseReceived(client::fetch(&url).await))
-                        .await
-                        .ok();
-                });
-            }
+            process_update(&mut app, msg, &tx);
+            should_draw = true;
         }
     }
 
