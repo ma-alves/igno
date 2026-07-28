@@ -1,4 +1,4 @@
-use crate::app::Response;
+use crate::client::Response;
 
 #[derive(Debug)]
 pub enum Message {

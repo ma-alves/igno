@@ -1,8 +1,9 @@
 use crate::app::{App, Focus, RequestStatus};
+use crate::client::Method;
 use crate::message::Message;
 
 pub enum Command {
-    Fetch { url: String },
+    Fetch { url: String, method: Method },
     None,
 }
 
@@ -49,8 +50,14 @@ pub fn update(app: &mut App, message: Message) -> Command {
             }
             app.status = RequestStatus::Loading;
             app.error = None;
+            let method = app
+                .request
+                .as_ref()
+                .map(|r| r.method)
+                .unwrap_or(Method::Get);
             Command::Fetch {
                 url: app.url.clone(),
+                method,
             }
         }
         Message::ResponseReceived(result) => {

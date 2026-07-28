@@ -14,6 +14,7 @@ use ratatui::{Terminal, backend::CrosstermBackend};
 use tokio::sync::mpsc;
 
 use app::App;
+use client::Client;
 use message::Message;
 use update::Command;
 
@@ -36,12 +37,13 @@ async fn main() -> Result<()> {
     result
 }
 
-fn process_update(app: &mut App, msg: Message, tx: &mpsc::Sender<Message>) {
+fn process_update(app: &mut App, msg: Message, tx: &mpsc::Sender<Message>, client: &Client) {
     let cmd = update::update(app, msg);
-    if let Command::Fetch { url } = cmd {
+    if let Command::Fetch { url, method } = cmd {
         let tx = tx.clone();
+        let client = client.clone();
         tokio::spawn(async move {
-            tx.send(Message::ResponseReceived(client::fetch(&url).await))
+            tx.send(Message::ResponseReceived(client.request(method, &url).await))
                 .await
                 .ok();
         });
@@ -50,6 +52,7 @@ fn process_update(app: &mut App, msg: Message, tx: &mpsc::Sender<Message>) {
 
 async fn run(terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>) -> Result<()> {
     let mut app = App::default();
+    let client = Client::new();
     let (tx, mut rx) = mpsc::channel::<Message>(32);
     let mut should_draw = true;
 
@@ -60,12 +63,12 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>) -> Resu
         }
 
         while let Ok(msg) = rx.try_recv() {
-            process_update(&mut app, msg, &tx);
+            process_update(&mut app, msg, &tx, &client);
             should_draw = true;
         }
 
         if let Some(msg) = handlers::handle_event(&app)? {
-            process_update(&mut app, msg, &tx);
+            process_update(&mut app, msg, &tx, &client);
             should_draw = true;
         }
     }
