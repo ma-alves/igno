@@ -38,7 +38,7 @@ pub fn view(frame: &mut Frame, app: &App) {
 fn focus_block<'a>(title: &'a str, focused: bool) -> Block<'a> {
     let mut block = Block::default().title(title).borders(Borders::ALL);
     if focused {
-        block = block.style(Style::default().add_modifier(Modifier::BOLD));
+        block = block.border_style(Style::default().fg(Color::Yellow));
     }
     block
 }
