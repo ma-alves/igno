@@ -39,13 +39,23 @@ async fn main() -> Result<()> {
 
 fn process_update(app: &mut App, msg: Message, tx: &mpsc::Sender<Message>, client: &Client) {
     let cmd = update::update(app, msg);
-    if let Command::Fetch { url, method } = cmd {
+    if let Command::Fetch {
+        url,
+        method,
+        body,
+        headers,
+    } = cmd
+    {
         let tx = tx.clone();
         let client = client.clone();
         tokio::spawn(async move {
-            tx.send(Message::ResponseReceived(client.request(method, &url).await))
-                .await
-                .ok();
+            tx.send(Message::ResponseReceived(
+                client
+                    .request(method, &url, body.as_deref(), headers)
+                    .await,
+            ))
+            .await
+            .ok();
         });
     }
 }

@@ -10,6 +10,39 @@ pub enum Method {
     Head,
 }
 
+impl Method {
+    pub const ALL: [Method; 6] = [
+        Method::Get,
+        Method::Post,
+        Method::Put,
+        Method::Patch,
+        Method::Delete,
+        Method::Head,
+    ];
+
+    pub fn next(self) -> Self {
+        Self::ALL[(self as usize + 1) % Self::ALL.len()]
+    }
+
+    pub fn prev(self) -> Self {
+        Self::ALL[(self as usize + Self::ALL.len() - 1) % Self::ALL.len()]
+    }
+}
+
+impl std::fmt::Display for Method {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Method::Get => "GET",
+            Method::Post => "POST",
+            Method::Put => "PUT",
+            Method::Patch => "PATCH",
+            Method::Delete => "DELETE",
+            Method::Head => "HEAD",
+        };
+        f.write_str(s)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Response {
     pub body: String,
@@ -58,7 +91,13 @@ impl Client {
         }
     }
 
-    pub async fn request(&self, method: Method, url: &str) -> Result<Response, String> {
+    pub async fn request(
+        &self,
+        method: Method,
+        url: &str,
+        body: Option<&str>,
+        headers: Vec<(String, String)>,
+    ) -> Result<Response, String> {
         let reqwest_method = match method {
             Method::Get => reqwest::Method::GET,
             Method::Post => reqwest::Method::POST,
@@ -68,13 +107,16 @@ impl Client {
             Method::Head => reqwest::Method::HEAD,
         };
 
+        let mut request = self.inner.request(reqwest_method, url);
+        for (name, value) in headers {
+            request = request.header(name, value);
+        }
+        if let Some(body) = body {
+            request = request.body(body.to_string());
+        }
+
         let start = Instant::now();
-        let raw_response = self
-            .inner
-            .request(reqwest_method, url)
-            .send()
-            .await
-            .map_err(|e| e.to_string())?;
+        let raw_response = request.send().await.map_err(|e| e.to_string())?;
         let elapsed = start.elapsed();
 
         Response::from_raw(raw_response, elapsed).await

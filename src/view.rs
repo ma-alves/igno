@@ -3,10 +3,10 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Wrap},
+    widgets::{Block, Borders, HighlightSpacing, List, ListItem, ListState, Paragraph, Wrap},
 };
 
-use crate::app::{App, Focus, RequestStatus};
+use crate::app::{App, Focus, RequestField, RequestStatus};
 
 pub fn view(frame: &mut Frame, app: &App) {
     let vertical = Layout::default()
@@ -45,8 +45,30 @@ fn focus_block<'a>(title: &'a str, focused: bool) -> Block<'a> {
 
 fn draw_request(frame: &mut Frame, app: &App, area: Rect) {
     let block = focus_block("Request", app.focus == Focus::RequestFocus);
-    let text = Paragraph::new(app.url.as_str()).block(block);
-    frame.render_widget(text, area);
+    let items: Vec<ListItem> = [
+        (RequestField::Url, format!("URL: {}", app.url)),
+        (RequestField::Method, format!("Method: {}", app.method)),
+        (RequestField::Headers, format!("Headers: {}", app.headers)),
+        (RequestField::Auth, format!("Auth: {}", app.auth)),
+        (RequestField::Body, format!("Body: {}", app.body)),
+    ]
+    .into_iter()
+    .map(|(_, text)| ListItem::new(Line::from(text)))
+    .collect();
+
+    let list = List::new(items)
+        .block(block)
+        .highlight_style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )
+        .highlight_symbol("> ")
+        .highlight_spacing(HighlightSpacing::Always);
+
+    let mut state = ListState::default();
+    state.select(Some(app.request_field.index()));
+    frame.render_stateful_widget(list, area, &mut state);
 }
 
 fn draw_status(frame: &mut Frame, app: &App, area: Rect) {
@@ -96,7 +118,7 @@ fn draw_response(frame: &mut Frame, app: &App, area: Rect) {
 }
 
 fn draw_footer(frame: &mut Frame, area: Rect) {
-    let text = Paragraph::new("Send: enter  |  Pop: backspace  |  Tab: focus  |  Scroll: ↑↓  |  Quit: q")
+    let text = Paragraph::new("Send: enter  |  Tab: focus  |  ↑↓ select/scroll  |  ←→ cycle  |  Quit: q")
         .style(Style::default().fg(Color::DarkGray));
     frame.render_widget(text, area);
 }

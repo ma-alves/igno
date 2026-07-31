@@ -1,10 +1,49 @@
-use crate::app::{App, Focus, RequestStatus};
+use crate::app::{App, Focus, RequestField, RequestStatus};
 use crate::client::Method;
 use crate::message::Message;
 
 pub enum Command {
-    Fetch { url: String, method: Method },
+    Fetch {
+        url: String,
+        method: Method,
+        body: Option<String>,
+        headers: Vec<(String, String)>,
+    },
     None,
+}
+
+fn active_text_field(app: &mut App) -> Option<&mut String> {
+    if app.focus != Focus::RequestFocus {
+        return None;
+    }
+    match app.request_field {
+        RequestField::Url => Some(&mut app.url),
+        RequestField::Body => Some(&mut app.body),
+        RequestField::Headers => Some(&mut app.headers),
+        _ => None,
+    }
+}
+
+fn request_cycle(app: &mut App, forward: bool) {
+    match app.request_field {
+        RequestField::Method => {
+            app.method = if forward { app.method.next() } else { app.method.prev() }
+        }
+        RequestField::Auth => {
+            app.auth = if forward { app.auth.next() } else { app.auth.prev() }
+        }
+        _ => {}
+    }
+}
+
+fn parse_headers(raw: &str) -> Vec<(String, String)> {
+    raw.lines()
+        .filter(|line| !line.trim().is_empty())
+        .filter_map(|line| {
+            let (name, value) = line.split_once(':')?;
+            Some((name.trim().to_string(), value.trim().to_string()))
+        })
+        .collect()
 }
 
 pub fn update(app: &mut App, message: Message) -> Command {
@@ -14,6 +53,22 @@ pub fn update(app: &mut App, message: Message) -> Command {
                 Focus::RequestFocus => Focus::ResponseFocus,
                 Focus::ResponseFocus => Focus::RequestFocus,
             };
+            Command::None
+        }
+        Message::SelectNextField => {
+            app.request_field = app.request_field.next();
+            Command::None
+        }
+        Message::SelectPrevField => {
+            app.request_field = app.request_field.prev();
+            Command::None
+        }
+        Message::CycleRight => {
+            request_cycle(app, true);
+            Command::None
+        }
+        Message::CycleLeft => {
+            request_cycle(app, false);
             Command::None
         }
         Message::ScrollUp if app.focus == Focus::ResponseFocus => {
@@ -33,11 +88,15 @@ pub fn update(app: &mut App, message: Message) -> Command {
             Command::None
         }
         Message::Char(c) => {
-            app.url.push(c);
+            if let Some(field) = active_text_field(app) {
+                field.push(c);
+            }
             Command::None
         }
         Message::Backspace => {
-            app.url.pop();
+            if let Some(field) = active_text_field(app) {
+                field.pop();
+            }
             Command::None
         }
         Message::Quit => {
@@ -50,14 +109,12 @@ pub fn update(app: &mut App, message: Message) -> Command {
             }
             app.status = RequestStatus::Loading;
             app.error = None;
-            let method = app
-                .request
-                .as_ref()
-                .map(|r| r.method)
-                .unwrap_or(Method::Get);
+            let body = (!app.body.is_empty()).then(|| app.body.clone());
             Command::Fetch {
                 url: app.url.clone(),
-                method,
+                method: app.method,
+                body,
+                headers: parse_headers(&app.headers),
             }
         }
         Message::ResponseReceived(result) => {

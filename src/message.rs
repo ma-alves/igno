@@ -12,4 +12,8 @@ pub enum Message {
     PageUp,
     PageDown,
     ToggleFocus,
+    SelectPrevField,
+    SelectNextField,
+    CycleLeft,
+    CycleRight,
 }
