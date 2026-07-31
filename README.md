@@ -25,8 +25,11 @@ igno follows the Elm-inspired architecture pattern:
 
 ## Contributing
 
-Contributions are welcome. Open an issue or submit a pull request.
+Contributions are welcome. Open an issue or submit a pull request. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 
-MIT
+igno is released under the [MIT License](LICENSE). You are free to use, copy,
+modify, and distribute this software, in source or binary form, provided the
+original copyright notice and license text are included. See the [LICENSE](LICENSE)
+file for the full terms.
